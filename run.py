@@ -21,7 +21,6 @@ def test():
 	p3_q = net.layers['cls3_fc_pose_wpqr']
 
 	init = tf.initialize_all_variables()
-
 	saver = tf.train.Saver()
 
 	with tf.Session() as sess:
@@ -32,15 +31,14 @@ def test():
 		for i in range(len(datasource.images)):
 			np_image = datasource.images[i]
 			feed = {image: np_image}
-
-			pose_q= np.asarray(datasource.poses[i][3:7])
-			pose_x= np.asarray(datasource.poses[i][0:3])
 			predicted_x, predicted_q = sess.run([p3_x, p3_q], feed_dict=feed)
-
-			pose_q = np.squeeze(pose_q)
-			pose_x = np.squeeze(pose_x)
-			predicted_q = np.squeeze(predicted_q)
 			predicted_x = np.squeeze(predicted_x)
+			predicted_q = np.squeeze(predicted_q)
+
+			pose_x= np.asarray(datasource.poses[i][0:3])
+			pose_q= np.asarray(datasource.poses[i][3:7])			
+			pose_x = np.squeeze(pose_x)
+			pose_q = np.squeeze(pose_q)
 
 			#Compute Individual Sample Error
 			q1 = pose_q / np.linalg.norm(pose_q)
@@ -51,14 +49,13 @@ def test():
 			results[i,:] = [error_x, theta]
 			print 'Iteration:  ', i, '  Error XYZ (m):  ', error_x, '  \
 					Error Q (degrees):  ', theta
-
+	#Compute Median Sample Error
 	median_result = np.median(results, axis=0)
 	print 'Median error ', median_result[0], 'm  and ', median_result[1], 'degrees.'
 
 def train():
 	batch_size = 75
-	max_iterations = 30000
-
+	max_iterations = 3000
 
 	images = tf.placeholder(tf.float32, [batch_size, 224, 224, 3])
 	poses_x = tf.placeholder(tf.float32, [batch_size, 3])
@@ -82,16 +79,17 @@ def train():
 	l3_q = tf.sqrt(tf.reduce_sum(tf.square(tf.subtract(p3_q, poses_q)))) * 500
 
 	loss = l1_x + l1_q + l2_x + l2_q + l3_x + l3_q
-	opt = tf.train.AdamOptimizer(learning_rate=0.0001, beta1=0.9, beta2=0.999, epsilon=0.00000001, use_locking=False, name='Adam').minimize(loss)
+	opt = tf.train.AdamOptimizer(learning_rate=0.0001, beta1=0.9, beta2=0.999, 
+			epsilon=0.00000001, use_locking=False, name='Adam').minimize(loss)
 	
 	# ---- create a summary to monitor cost tensor
 	tf.summary.scalar("loss", loss)
-	# merge all summaries into a single op
-	merged_summary_op = tf.summary.merge_all()
-	# op to write logs to Tensorboard
-	logs_path = './logs'
+	merged_summary_op = tf.summary.merge_all() # merge all summaries into a single op
+	logs_path = './logs' # op to write logs to Tensorboard
 	summary_writer = tf.summary.FileWriter(logs_path, graph=tf.get_default_graph())
-	
+	print("Run the command line: --> tensorboard --logdir=./logs " \
+			"\nThen open http://0.0.0.0:6006/ into your web browser")
+
 	# ---- Set GPU options
 	gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.6833)
 
@@ -108,8 +106,10 @@ def train():
 			np_images, np_poses_x, np_poses_q = next(data_gen)
 			feed = {images: np_images, poses_x: np_poses_x, poses_q: np_poses_q}
 
-			sess.run(opt, feed_dict=feed)
-			np_loss = sess.run(loss, feed_dict=feed)
+			sess.run(opt, feed_dict=feed) # run the optimizer
+			np_loss = sess.run(loss, feed_dict=feed) #get the loss
+
+			# ---- print the logs
 			if i % 20 == 0:
 				print("iteration: " + str(i) + "\n\t" + "Loss is: " + str(np_loss))
 			if i % 100 == 0:
@@ -123,8 +123,5 @@ def train():
 		saver.save(sess, path_ckpt)
 		print("Intermediate file saved at: " + path_ckpt)
 
-	print("Run the command line: --> tensorboard --logdir=./logs " \
-			"\nThen open http://0.0.0.0:6006/ into your web browser")
-
 if __name__ == '__main__':
-	test()
+	train()
