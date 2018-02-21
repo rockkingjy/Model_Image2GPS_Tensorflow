@@ -8,7 +8,7 @@ import cv2
 from tqdm import tqdm
 import math
 
-path_ckpt = '/home/enroutelab/Amy/caffe/examples/img2gps/tensorflow_posenet/temp/PoseNet.ckpt'
+path_ckpt = '/media/enroutelab/sdd/mycodes/Image2GPS/tensorflow_posenet/temp/PoseNet.ckpt'
 
 def test():
 	image = tf.placeholder(tf.float32, [1, 224, 224, 3])
